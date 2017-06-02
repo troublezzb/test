@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>自制身份证号码</title>
+</head>
+<body>
+
+	<form action="makeID_submit" method="get" accept-charset="utf-8">
+		<select name="province"></select>
+		<select name="city"></select>
+		<select name="county"></select>
+		<br>
+		<input type="date" name="birthday" placeholder="出生年月日">
+		<br>
+		<input type="radio" name="gender" value="1" checked>男
+		<input type="radio" name="gender" value="0">女
+		<br>
+		<input type="button" class="js_btn_submit" value="生成号码">
+	</form>
+	<div class="makeID_result"></div>
+
+	<!-- 解码身份证 start -->
+	<hr>
+	<div class="box_decodeID">
+		<input type="text" name="id_num" placeholder="18位身份证号码" minlength="18" maxlength="18">
+		<input type="button" class="js_btn_decode" value="解码号码">
+	</div>
+	<div class="ID_info"></div>
+	<!-- 解码身份证 end -->
+
+</body>
+<script src="jquery-3.2.1.min.js"></script>
+<script src="xzqhdm.js"></script>
+<script>
+	/**
+	 * （根据17位数）计算校验码
+	 * @param id_num 18位身份证号码
+	 */
+	function calculateCheckCode(id_num){
+		//判断
+		if (id_num.length < 17) {
+			alert('身份证号码位数有误！');
+			return false;
+		}
+		//④计算校验码
+		////a.将前面的17位数分别乘以7 9 10 5 8 4 2 1 6 3 7 9 10 5 8 4 2，并求和。
+		////b.模11余数作为下标，取数组[1, 0, X, 9, 8, 7, 6, 5, 4, 3, 2]即为身份证最后一位数。
+		var RATIO = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+		var CHECK_CODE = [1, 0, 'X', 9, 8, 7, 6, 5, 4, 3, 2];
+		var sum = 0;
+		for (var i in RATIO) {
+			sum += id_num[i] * RATIO[i];
+		}
+		return CHECK_CODE[sum%11];
+	}
+	/**
+	 * 检测身份证号码是否有效
+	 * @param id_num 18位身份证号码
+	 */
+	function checkID(id_num){
+		//位数
+		if (id_num.length != 18) {
+			return false;
+		}
+		//校验码
+		if (id_num.substr(-1).toUpperCase() != calculateCheckCode(id_num)) {
+			return false;
+		}
+		return true;
+	}
+	/**
+	 * 开始计算身份证号码
+	 * @param county 县级行政区划代码（6位地址码）
+	 * @param birthday 出生年月日（形如2017-01-01）
+	 * @param gender 性别（0表示女，1表示男）
+	 */
+	function encodeID(county, birthday, gender){
+		//①获取6位地址码
+		var id_num = county;
+		//②获取8位出生日期码
+		id_num += birthday.replace(/\-/g, '');
+		//③获取3位顺序码（随机）。男为奇数，女为偶数
+		var order_num = '';
+		while (order_num.length != 3) {
+			var temp = Math.random();
+			if (parseInt(temp*1000)%2 == gender) {
+				order_num = temp.toString().substr(2, 3);
+			}
+		}
+		id_num += order_num;
+		id_num += calculateCheckCode(id_num);
+		return id_num;
+	}
+	/**
+	 * 解码身份证号码
+	 * @param id_num 18位身份证号码
+	 */
+	function decodeID(id_num){
+		//判断身份证
+		if (!checkID(id_num)) {
+			alert('该身份证格式无效！');
+			return false;
+		}
+		//开始解码
+		var id_info = new Array();
+		//获取地址
+		id_info.push(xzqhdm_province.get(id_num.substr(0, 2) + '0000'));
+		id_info.push(xzqhdm_city.get(id_num.substr(0, 4) + '00'));
+		id_info.push(xzqhdm_county.get(id_num.substr(0, 6)));
+		//获取出生年月日
+		id_info.push(id_num.substr(6, 4) + '-' + id_num.substr(10, 2) + '-' + id_num.substr(12, 2));
+		//获取性别
+		id_info.push(id_num.substr(-2, 1) % 2 == 0? '女' : '男');
+		return id_info;
+	}
+
+	$(function(){
+		//默认加载省级列表
+		var str_temp = '<option value="">请选择</option>';
+		xzqhdm_province.forEach( function(element, index) {
+			str_temp = str_temp + '<option value="'+ index +'">'+ element +'</option>';
+		});
+		$('select[name="province"]').html(str_temp);
+		//省级变化后
+		$(document).on('change', 'select[name="province"]', function(event){
+			str_temp = '<option value="">请选择</option>';
+			//根据省级加载对应的市级
+			var parent_id = $(this).val();
+			xzqhdm_city.forEach( function(element, index) {
+				if (index.toString().substr(0, 2) == parent_id.substr(0, 2)) {
+					str_temp = str_temp + '<option value="'+ index +'">'+ element +'</option>';
+				}
+			});
+			$('select[name="city"]').html(str_temp);
+		});
+		//市级变化后
+		$(document).on('change', 'select[name="city"]', function(event){
+			str_temp = '<option value="">请选择</option>';
+			//根据市级加载对应的县级
+			var parent_id = $(this).val();
+			xzqhdm_county.forEach( function(element, index) {
+				if (index.toString().substr(0, 4) == parent_id.substr(0, 4)) {
+					str_temp = str_temp + '<option value="'+ index +'">'+ element +'</option>';
+				}
+			});
+			$('select[name="county"]').html(str_temp);
+		});
+		//点击生成身份证号码
+		$(document).on('click', '.js_btn_submit', function(event) {
+			event.preventDefault();
+			//获取数据
+			var county = $('select[name="county"]').val();
+			var birthday = $('input[name="birthday"]').val();
+			var gender = $('input[name="gender"]:checked').val();
+			//判断
+			if (!county) {
+				alert('请选择地址。');
+				return false;
+			}
+			if (!birthday) {
+				alert('请选择出生年月日。');
+				return false;
+			}
+			//开始计算身份证号码
+			var id_num = encodeID(county, birthday, gender);
+			//显示生成的身份证号码
+			$('.makeID_result').html(id_num);
+		});
+		//点击解码身份证号码
+		$(document).on('click', '.js_btn_decode', function(event) {
+			event.preventDefault();
+			//获取数据
+			var id_num = $('input[name="id_num"]').val();
+			//判断
+			if (!id_num) {
+				alert('请输入18位身份证号码。');
+				return false;
+			}
+			//解码身份证号码
+			var id_num = decodeID(id_num);
+			//显示生成的身份证号码
+			$('.ID_info').html(id_num.toString());
+		});
+	});
+</script>
+</html>

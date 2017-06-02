@@ -1,0 +1,67 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>HTML5 Upload</title>
+<style type="text/css">
+    #destination{
+      filter:progid:DXImageTransform.Microsoft.AlphaImageLoader(true,sizingMethod=scale);
+    }
+</style>
+<script src="jquery-3.2.1.min.js"></script>
+<script>
+    //处理file input加载的图片文件
+    $(function () {
+        //判断浏览器是否有FileReader接口
+        if (typeof FileReader == 'undefined') {
+            $("#destination").css({'background': 'none'}).html('亲,您的浏览器还不支持HTML5的FileReader接口,无法使用图片本地预览,请更新浏览器获得最好体验');
+            return false;
+        }
+        //多图上传 input file控件里指定multiple属性 e.target是dom类型
+        $("#imgUpload").change(function (e) {
+            for (var i = 0; i < e.target.files.length; i++) {
+                var file = e.target.files.item(i);
+                //允许文件MIME类型 也可以在input标签中指定accept属性
+                if (!(/^image\/.*$/i.test(file.type))) {
+                    continue;  //不是图片 就跳出这一次循环
+                }
+                createImgTag(file);
+            }
+        });
+
+        //处理图片拖拽的代码
+        var destDom = document.getElementById('destination');
+        destDom.addEventListener('dragover', function (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }, false);
+
+        destDom.addEventListener('drop', function (event) {
+            event.stopPropagation();
+            event.preventDefault();
+            var img_file = event.dataTransfer.files.item(0);  //获取拖拽过来的文件信息 暂时取一个
+            if (!(/^image\/.*$/.test(img_file.type))) {
+                alert('请您拖拽图片文件。');
+                return false;
+            }
+            createImgTag(img_file);
+        }, false);
+    });
+    /* 创建img标签-预览图片 */
+    function createImgTag(img_file) {
+        //实例化 FileReader 接口
+        var freader = new FileReader();
+        freader.readAsDataURL(img_file);
+        freader.onload = function (event) {
+            var img = '<img src="' + event.target.result + '" width="200px" height="200px"/>';
+            $("#destination").append(img);
+        };
+    }
+</script>
+</head>
+
+<body>
+    <input type="file" id="imgUpload" name="imgUpload" draggable="true" single/> <!--允许file控件接受的文件类型-->
+    <!--<input type="file" id="imgUpload" name="imgUpload" accept="image/*" multiple/>-->
+    <div id="destination"></div>
+</body>
+</html>
